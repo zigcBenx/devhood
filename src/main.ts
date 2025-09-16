@@ -9,11 +9,12 @@ const app = createApp(App)
 
 app
   .use(router)
-  .use(
-    createAuth0({
-      domain: auth0Config.domain,
-      clientId: auth0Config.clientId,
-      authorizationParams: auth0Config.authorizationParams
-    })
-  )
+  // Temporarily disable Auth0 to test OAuth callback
+  // .use(
+  //   createAuth0({
+  //     domain: auth0Config.domain,
+  //     clientId: auth0Config.clientId,
+  //     authorizationParams: auth0Config.authorizationParams
+  //   })
+  // )
   .mount('#app')

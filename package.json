@@ -6,7 +6,10 @@
     "dev": "vite",
     "build": "vue-tsc && vite build",
     "preview": "vite preview",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore"
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "server:dev": "cd server && npm run dev",
+    "server:install": "cd server && npm install",
+    "full:dev": "npm run server:dev & npm run dev"
   },
   "dependencies": {
     "@auth0/auth0-vue": "^2.4.0",
@@ -16,6 +19,7 @@
     "clsx": "^2.0.0",
     "lucide-vue-next": "^0.309.0",
     "radix-vue": "^1.4.0",
+    "sqlite3": "^5.1.7",
     "tailwind-merge": "^2.2.0",
     "tailwindcss-animate": "^1.0.7",
     "vue": "^3.4.0",

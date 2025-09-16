@@ -1,5 +1,6 @@
 <template>
-  <div class="flex items-center gap-4">
+  <!-- AuthButton temporarily disabled while Auth0 is disabled -->
+  <div v-if="false" class="flex items-center gap-4">
     <!-- Login Button with Better UX -->
     <div v-if="!isAuthenticated && !isLoading" class="flex flex-col items-end gap-2">
       <button
@@ -147,11 +148,31 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { useAuth0 } from '@auth0/auth0-vue'
 import { supabaseService, supabase, type Profile } from '@/services/supabase'
 import { Github, Shield, RefreshCw, Link, LogOut, ChevronDown } from 'lucide-vue-next'
 
-const { loginWithRedirect, logout: auth0Logout, user, isAuthenticated, isLoading, getAccessTokenSilently } = useAuth0()
+// Safely handle Auth0 - it might not be available
+let loginWithRedirect = () => console.log('Auth0 not available')
+let auth0Logout = () => console.log('Auth0 not available')
+let user = ref(null)
+let isAuthenticated = ref(false)
+let isLoading = ref(false)
+let getAccessTokenSilently = () => Promise.resolve('')
+const auth0Available = ref(true)
+
+try {
+  const { useAuth0 } = require('@auth0/auth0-vue')
+  const auth0 = useAuth0()
+  loginWithRedirect = auth0.loginWithRedirect
+  auth0Logout = auth0.logout
+  user = auth0.user
+  isAuthenticated = auth0.isAuthenticated
+  isLoading = auth0.isLoading
+  getAccessTokenSilently = auth0.getAccessTokenSilently
+} catch (e) {
+  console.log('Auth0 not available, AuthButton will be hidden')
+  auth0Available.value = false
+}
 
 const showMenu = ref(false)
 const profile = ref<Profile | null>(null)

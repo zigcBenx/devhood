@@ -82,6 +82,47 @@
               <span class="font-semibold tracking-wider">{{ profile.username }}</span>
               <div class="w-2 h-6 bg-green-400 animate-pulse ml-1"></div>
             </div>
+
+            <!-- Profile Status Section -->
+            <div class="flex justify-center mt-6">
+              <!-- Profile is claimed -->
+              <div v-if="profileStatus?.claimed" class="group flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-amber-500/20 to-orange-600/20 border border-amber-500/40 rounded-lg backdrop-blur-sm">
+                <Crown class="h-5 w-5 text-amber-400" />
+                <span class="text-lg font-semibold text-amber-300">
+                  Profile Claimed
+                </span>
+                <div class="flex items-center gap-2 text-sm">
+                  <span class="text-amber-300/70">Connected via:</span>
+                  <div class="flex gap-2">
+                    <Badge
+                      v-for="connection in profileStatus.connections"
+                      :key="connection.provider"
+                      variant="secondary"
+                      class="bg-amber-500/20 text-amber-200 border-amber-500/30"
+                    >
+                      {{ connection.provider }}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Profile is not claimed -->
+              <button
+                v-else
+                @click="$router.push(`/claim/${profile.username}`)"
+                class="group flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-green-500/20 to-green-600/20 border border-green-500/40 rounded-lg hover:from-green-500/30 hover:to-green-600/30 hover:border-green-400 transition-all duration-300 hover:shadow-[0_0_25px_rgba(0,255,0,0.3)] backdrop-blur-sm"
+              >
+                <Crown class="h-5 w-5 text-yellow-400 group-hover:text-yellow-300 transition-colors" />
+                <span class="text-lg font-semibold text-green-300 group-hover:text-green-200 transition-colors">
+                  Claim This Profile
+                </span>
+                <div class="flex gap-1">
+                  <div class="w-1 h-1 rounded-full bg-green-400 animate-pulse"></div>
+                  <div class="w-1 h-1 rounded-full bg-green-400 animate-pulse" style="animation-delay: 0.5s"></div>
+                  <div class="w-1 h-1 rounded-full bg-green-400 animate-pulse" style="animation-delay: 1s"></div>
+                </div>
+              </button>
+            </div>
             <p class="text-xl text-green-200/80 max-w-3xl mx-auto leading-relaxed font-light tracking-wide">
               {{ profile.bio }}
             </p>
@@ -166,11 +207,13 @@
         </div>
 
         <!-- Activity Graph -->
-        <ActivityGraph 
+        <ActivityGraph
           :username="profile.username"
-          :is-claimed="profile.isClaimed"
-          :merged-data="profile.isClaimed ? getMergedActivityData() : undefined"
-          @retry="fetchProfile"
+          :is-claimed="profileStatus?.claimed || profile.isClaimed"
+          :merged-data="contributionsData ? formatContributionsForGraph() : (profile.isClaimed ? getMergedActivityData() : undefined)"
+          :loading="contributionsLoading"
+          :error="contributionsError"
+          @retry="loadContributionsAsync"
         />
 
         <!-- Stats Cards -->
@@ -239,6 +282,7 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuth0 } from '@auth0/auth0-vue'
 import { profileService, type MergedProfile, type BadgeWithProgress } from '@/services/profile'
+import { apiService } from '@/services/api'
 import type { Profile } from '@/services/supabase'
 import { useMeta } from '@/composables/useMeta'
 import Avatar from '@/components/ui/avatar.vue'
@@ -263,13 +307,22 @@ import {
   Shield,
   MapPin,
   Building,
+  Crown,
   Share
 } from 'lucide-vue-next'
 
 const route = useRoute()
 const username = computed(() => route.params.username as string)
 const { updateMeta } = useMeta()
-const { user } = useAuth0()
+
+// Safely handle Auth0 - it might not be available
+let user = ref(null)
+try {
+  const auth0 = useAuth0()
+  user = auth0.user
+} catch (e) {
+  console.log('Auth0 not available, continuing without it')
+}
 
 const loading = ref(false)
 const error = ref('')
@@ -277,6 +330,10 @@ const profile = ref<MergedProfile | null>(null)
 const badges = ref<BadgeWithProgress[]>([])
 const claimedProfile = ref<Profile | null>(null)
 const shareStats = ref<{ views: number; shares: number; clicks: number } | null>(null)
+const profileStatus = ref<{ claimed: boolean; connections: Array<{ provider: string; username: string }> } | null>(null)
+const contributionsData = ref<any>(null)
+const contributionsLoading = ref(false)
+const contributionsError = ref('')
 
 // Update meta tags when profile changes
 watch(profile, async (newProfile: MergedProfile | null) => {
@@ -322,20 +379,52 @@ const getIcon = (iconName: string) => {
   return iconMap[iconName as keyof typeof iconMap] || Globe
 }
 
+const loadContributionsAsync = async () => {
+  contributionsLoading.value = true
+  contributionsError.value = ''
+
+  try {
+    console.log('🔄 Loading contributions asynchronously...')
+    const contributionsResponse = await apiService.getContributions(username.value)
+    contributionsData.value = contributionsResponse.contributions
+    console.log('✅ Fetched combined contributions:', contributionsData.value)
+  } catch (contribError) {
+    console.error('❌ Failed to fetch contributions:', contribError)
+    contributionsError.value = contribError instanceof Error ? contribError.message : 'Failed to load contributions'
+    contributionsData.value = null
+  } finally {
+    contributionsLoading.value = false
+  }
+}
+
 const fetchProfile = async () => {
   loading.value = true
   error.value = ''
-  
+
   try {
+    // Check if profile is claimed via our database
+    try {
+      profileStatus.value = await apiService.getProfileStatus(username.value)
+    } catch (statusErr) {
+      console.log('Failed to check profile status:', statusErr)
+      profileStatus.value = { claimed: false, connections: [] }
+    }
+
     const userId = user.value?.sub
     profile.value = await profileService.getProfile(username.value, userId)
-    
+
+    // Start async contributions loading after profile loads
+    if (profileStatus.value?.claimed) {
+      // Don't await - let this load asynchronously
+      loadContributionsAsync()
+    }
+
     // If it's a claimed profile, load additional data
     if (profile.value.isClaimed) {
       badges.value = await profileService.getBadgesWithProgress(
         profile.value.badges.length > 0 ? profile.value.badges[0].profile_id : undefined
       )
-      
+
       // Extract the base profile data for ShareProfile component
       if (profile.value.badges.length > 0) {
         const profileId = profile.value.badges[0].profile_id
@@ -358,7 +447,7 @@ const fetchProfile = async () => {
           created_at: profile.value.joinedDate,
           updated_at: new Date().toISOString()
         } as Profile
-        
+
         // Mock share stats - in a real app you'd fetch this from Supabase
         shareStats.value = {
           views: Math.floor(Math.random() * 500) + 100,
@@ -406,6 +495,111 @@ const copyToClipboard = async (text: string) => {
   } catch (err) {
     console.error('Failed to copy URL')
   }
+}
+
+const formatContributionsForGraph = () => {
+  if (!contributionsData.value) {
+    return undefined
+  }
+
+  const result: any = {}
+
+  // Format combined data if available
+  if (contributionsData.value.combined) {
+    const combinedData = contributionsData.value.combined
+    result.merged = {
+      totalContributions: combinedData.total,
+      weeks: formatDataAsWeeks(combinedData.data, 'total'),
+      months: generateMonthLabels()
+    }
+  }
+
+  // Format GitHub data if available
+  if (contributionsData.value.github) {
+    const githubData = contributionsData.value.github
+    result.github = {
+      totalContributions: githubData.total,
+      weeks: formatDataAsWeeks(githubData.data, 'github'),
+      months: generateMonthLabels()
+    }
+  }
+
+  // Format GitLab data if available
+  if (contributionsData.value.gitlab) {
+    const gitlabData = contributionsData.value.gitlab
+    result.gitlab = {
+      totalContributions: gitlabData.total,
+      weeks: formatDataAsWeeks(gitlabData.data, 'gitlab'),
+      months: generateMonthLabels()
+    }
+  }
+
+  return result
+}
+
+const formatDataAsWeeks = (data: any[], type: 'total' | 'github' | 'gitlab') => {
+  // Calculate exact same date range as backend (365 days ending today)
+  const today = new Date()
+  const startDate = new Date(today)
+  startDate.setFullYear(today.getFullYear() - 1)
+  startDate.setDate(today.getDate() + 1) // Start from tomorrow last year
+
+  // Create a map of contributions by date for quick lookup
+  const contributionsByDate = new Map()
+  data.forEach(day => {
+    contributionsByDate.set(day.date, day)
+  })
+
+  // Generate all days from start date to today
+  const allDays = []
+  const currentDate = new Date(startDate)
+
+  while (currentDate <= today) {
+    const dateStr = currentDate.toISOString().split('T')[0]
+
+    const contribution = contributionsByDate.get(dateStr)
+    const count = contribution ?
+      (type === 'total' ? contribution.total || contribution.count :
+       type === 'github' ? contribution.github || contribution.count :
+       contribution.gitlab || contribution.count) : 0
+
+    allDays.push({
+      date: dateStr,
+      contributionCount: count,
+      intensity: Math.min(4, Math.floor(count / 3)),
+      color: getContributionColor(count)
+    })
+
+    currentDate.setDate(currentDate.getDate() + 1)
+  }
+
+  // Pad to start on Sunday (GitHub style)
+  const weeks = []
+  let paddedDays = [...allDays]
+
+  // Find what day of week the first day is (0 = Sunday, 1 = Monday, etc.)
+  const firstDayOfWeek = new Date(startDate).getDay()
+
+  // Add empty days to start the first week on Sunday if needed
+  for (let i = 0; i < firstDayOfWeek; i++) {
+    const padDate = new Date(startDate)
+    padDate.setDate(startDate.getDate() - (firstDayOfWeek - i))
+
+    paddedDays.unshift({
+      date: padDate.toISOString().split('T')[0],
+      contributionCount: 0,
+      intensity: 0,
+      color: getContributionColor(0)
+    })
+  }
+
+  // Group into weeks (7 days each, starting with Sunday)
+  for (let i = 0; i < paddedDays.length; i += 7) {
+    const weekDays = paddedDays.slice(i, i + 7)
+    weeks.push({ contributionDays: weekDays })
+  }
+
+  return weeks
 }
 
 const getMergedActivityData = () => {

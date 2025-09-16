@@ -5,35 +5,91 @@
         <span class="text-green-500">&gt;</span> ACTIVITY MATRIX <span class="text-green-500">&lt;</span>
       </h2>
       
-      <!-- Loading State -->
-      <div v-if="loading" class="bg-black/40 border border-green-500/20 rounded-lg p-8 relative overflow-hidden">
-        <div class="text-center">
-          <Activity class="h-12 w-12 mx-auto mb-3 text-green-400 animate-pulse" />
-          <p class="text-lg text-green-300 font-semibold">Loading contribution matrix...</p>
-          <p class="text-sm text-green-400/60 mt-2 font-mono">[ FETCHING DATA... ]</p>
-        </div>
-      </div>
-      
-      <!-- Error State -->
-      <div v-else-if="error" class="bg-black/40 border border-red-500/30 rounded-lg p-8">
-        <div class="text-center">
-          <div class="text-red-400 text-4xl mb-3">⚠️</div>
-          <p class="text-lg text-red-300 font-semibold mb-2">Failed to load activity matrix</p>
-          <p class="text-sm text-red-400/80 font-mono">{{ error }}</p>
-          <button
-            @click="$emit('retry')"
-            class="mt-4 px-4 py-2 bg-green-500 text-black rounded-md hover:bg-green-400 transition-colors font-semibold text-sm"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-      
-      <!-- Contribution Grid -->
-      <div v-else-if="displayedData" class="activity-container bg-black/40 border border-green-500/20 rounded-lg p-6 relative overflow-hidden group">
+      <!-- Contribution Grid Container -->
+      <div class="activity-container bg-black/40 border border-green-500/20 rounded-lg p-6 relative overflow-hidden group">
         <div class="absolute inset-0 bg-[linear-gradient(90deg,transparent_0%,rgba(0,255,0,0.1)_50%,transparent_100%)] translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-2000 ease-in-out"></div>
         
-        <div class="relative z-10">
+        <!-- Loading Overlay with Shimmer Effect -->
+        <div v-if="props.loading || fallbackLoading" class="absolute inset-0 bg-black/80 backdrop-blur-sm z-50 rounded-lg overflow-hidden">
+          <!-- Shimmer animation (exact same as stats cards) -->
+          <div class="absolute inset-0 bg-gradient-to-r from-transparent via-green-400/20 to-transparent translate-x-[-100%] transition-transform duration-1000 ease-in-out"
+               style="animation: shimmerLoading 2s ease-in-out infinite;"></div>
+
+          <div class="absolute inset-0 flex items-center justify-center">
+            <div class="bg-black/90 rounded-lg px-6 py-4 border border-green-500/30">
+              <div class="flex items-center gap-3 text-green-400">
+                <div class="w-5 h-5 border-2 border-green-400 border-t-transparent rounded-full animate-spin"></div>
+                <span class="text-lg font-mono font-semibold">Loading Activity Matrix</span>
+              </div>
+              <p class="text-sm text-green-400/70 mt-2 text-center font-mono">
+                Fetching GitHub & GitLab contributions...
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Error Overlay -->
+        <div v-else-if="props.error || fallbackError" class="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 rounded-lg">
+          <div class="text-center">
+            <div class="bg-black/90 rounded-lg px-8 py-6 border border-red-500/30">
+              <div class="text-red-400 text-4xl mb-4">⚠️</div>
+              <h3 class="text-xl text-red-300 font-semibold mb-2 font-mono">Matrix Load Failed</h3>
+              <p class="text-red-400/80 text-sm mb-6 font-mono max-w-md">
+                {{ props.error || fallbackError }}
+              </p>
+              <button
+                @click="$emit('retry')"
+                class="px-6 py-2 bg-green-500 text-black rounded-md hover:bg-green-400 transition-colors font-semibold text-sm font-mono"
+              >
+                [ RETRY ]
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Placeholder grid structure (hidden behind overlay) -->
+        <div v-if="!showGridContent" class="relative z-10 opacity-20">
+          <!-- Minimal header -->
+          <div class="flex items-center justify-between mb-6">
+            <div class="text-sm text-green-300 font-mono">
+              <span class="text-green-500">$</span> git log --oneline --since="1 year ago"
+            </div>
+            <div class="text-xs text-green-400/60 font-mono">
+              ••• CONTRIBUTIONS
+            </div>
+          </div>
+
+          <!-- Month labels placeholder -->
+          <div class="flex justify-between text-xs text-green-400/60 font-mono mb-2 pl-8">
+            <span v-for="month in ['Jan', 'Apr', 'Jul', 'Oct']" :key="month" class="flex-1 text-center">
+              {{ month }}
+            </span>
+          </div>
+
+          <!-- Placeholder grid -->
+          <div class="flex gap-3">
+            <div class="flex flex-col gap-1 text-xs text-green-400/60 font-mono pt-1">
+              <div class="h-3 flex items-center">Sun</div>
+              <div class="h-3"></div>
+              <div class="h-3 flex items-center">Tue</div>
+              <div class="h-3"></div>
+              <div class="h-3 flex items-center">Thu</div>
+              <div class="h-3"></div>
+              <div class="h-3 flex items-center">Sat</div>
+            </div>
+            <div class="overflow-x-auto flex-1">
+              <div class="flex gap-1 min-w-[800px]">
+                <div v-for="week in 52" :key="week" class="flex flex-col gap-1">
+                  <div v-for="day in 7" :key="day"
+                       class="w-3 h-3 rounded-sm bg-gray-800 border border-green-500/20">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="showGridContent" class="relative z-10">
           <!-- Grid Header with Provider Toggles -->
           <div class="flex items-center justify-between mb-6">
             <div class="text-sm text-green-300 font-mono">
@@ -106,13 +162,13 @@
           <div class="flex gap-3">
             <!-- Day of week labels -->
             <div class="flex flex-col gap-1 text-xs text-green-400/60 font-mono pt-1">
-              <div class="h-3 flex items-center">Mon</div>
-              <div class="h-3"></div>
-              <div class="h-3 flex items-center">Wed</div>
-              <div class="h-3"></div>
-              <div class="h-3 flex items-center">Fri</div>
-              <div class="h-3"></div>
               <div class="h-3 flex items-center">Sun</div>
+              <div class="h-3"></div>
+              <div class="h-3 flex items-center">Tue</div>
+              <div class="h-3"></div>
+              <div class="h-3 flex items-center">Thu</div>
+              <div class="h-3"></div>
+              <div class="h-3 flex items-center">Sat</div>
             </div>
             
             <!-- Contribution squares -->
@@ -192,12 +248,14 @@ interface Props {
     merged?: ContributionsData
   }
   isClaimed?: boolean
+  loading?: boolean
+  error?: string
 }
 
 const props = defineProps<Props>()
 
-const loading = ref(false)
-const error = ref('')
+const fallbackLoading = ref(false)
+const fallbackError = ref('')
 const contributionsData = ref<ContributionsData | null>(null)
 const activeView = ref<'merged' | 'github' | 'gitlab'>('merged')
 
@@ -227,6 +285,11 @@ const displayedData = computed(() => {
     }
   }
   return contributionsData.value
+})
+
+// Show grid content when we have data and no loading/error state
+const showGridContent = computed(() => {
+  return displayedData.value && !props.loading && !fallbackLoading.value && !props.error && !fallbackError.value
 })
 
 // Get total contributions for the current view
@@ -261,17 +324,17 @@ const monthLabels = computed(() => {
 
 const fetchContributions = async () => {
   if (!props.username) return
-  
-  loading.value = true
-  error.value = ''
-  
+
+  fallbackLoading.value = true
+  fallbackError.value = ''
+
   try {
     contributionsData.value = await contributionsService.fetchContributions(props.username)
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to load contributions'
+    fallbackError.value = err instanceof Error ? err.message : 'Failed to load contributions'
     contributionsData.value = null
   } finally {
-    loading.value = false
+    fallbackLoading.value = false
   }
 }
 
@@ -317,3 +380,14 @@ defineEmits<{
   retry: []
 }>()
 </script>
+
+<style scoped>
+@keyframes shimmerLoading {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+</style>
