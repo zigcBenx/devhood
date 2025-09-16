@@ -33,6 +33,25 @@
           <div class="text-4xl mb-4">❌</div>
           <h2 class="text-xl font-bold text-red-400 mb-2">Authentication Failed</h2>
           <p class="text-red-300/80 mb-4">{{ errorMessage }}</p>
+
+          <!-- Account Mismatch Error with Redirect Option -->
+          <div v-if="accountMismatch" class="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+            <div class="flex items-center gap-2 text-yellow-400 mb-2">
+              <span class="text-lg">⚠️</span>
+              <span class="font-semibold">Account Mismatch</span>
+            </div>
+            <p class="text-yellow-300/80 text-sm mb-3">
+              You authenticated as <span class="font-mono font-semibold">{{ authenticatedUser }}</span>
+              but tried to claim <span class="font-mono font-semibold">{{ attemptedClaim }}</span>
+            </p>
+            <button
+              @click="redirectToCorrectProfile"
+              class="w-full px-4 py-2 bg-yellow-500 text-black rounded hover:bg-yellow-400 transition-colors font-semibold text-sm mb-2"
+            >
+              Claim Your Profile: {{ authenticatedUser }}
+            </button>
+          </div>
+
           <div class="space-y-2">
             <button
               @click="retry"
@@ -68,6 +87,9 @@ const statusMessage = ref('Connecting to authentication service...')
 const errorMessage = ref('')
 const provider = ref('')
 const username = ref('')
+const accountMismatch = ref(false)
+const authenticatedUser = ref('')
+const attemptedClaim = ref('')
 
 const handleOAuthCallback = async () => {
   console.log('🔥 STARTING handleOAuthCallback function')
@@ -158,7 +180,18 @@ const handleOAuthCallback = async () => {
 
     error.value = true
     processing.value = false
-    errorMessage.value = err instanceof Error ? err.message : 'Authentication failed'
+
+    // Check if this is an account mismatch error (403 status)
+    if (err?.response?.status === 403 && err?.response?.data) {
+      const errorData = err.response.data
+      accountMismatch.value = true
+      authenticatedUser.value = errorData.authenticated_user || ''
+      attemptedClaim.value = errorData.attempted_claim || username.value
+      errorMessage.value = errorData.details || 'Account mismatch detected'
+    } else {
+      accountMismatch.value = false
+      errorMessage.value = err instanceof Error ? err.message : 'Authentication failed'
+    }
   }
 }
 
@@ -172,6 +205,14 @@ const retry = () => {
 
 const goHome = () => {
   router.push('/')
+}
+
+const redirectToCorrectProfile = () => {
+  if (authenticatedUser.value) {
+    router.push(`/claim/${authenticatedUser.value}`)
+  } else {
+    router.push('/')
+  }
 }
 
 onMounted(() => {

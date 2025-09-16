@@ -82,6 +82,20 @@ router.post('/github/connect', async (req, res) => {
 
     const githubUser = userResponse.data
 
+    // SECURITY: Validate that GitHub username matches the profile being claimed
+    if (githubUser.login.toLowerCase() !== username.toLowerCase()) {
+      console.error(`❌ GitHub username mismatch: trying to claim '${username}' but authenticated as '${githubUser.login}'`)
+      return res.status(403).json({
+        error: 'Account mismatch',
+        details: `You are authenticated as GitHub user '${githubUser.login}' but trying to claim profile '${username}'. These must match.`,
+        authenticated_user: githubUser.login,
+        attempted_claim: username,
+        suggestion: `You can claim your own profile at: ${process.env.CLIENT_URL || 'http://localhost:5173'}/claim/${githubUser.login}`
+      })
+    }
+
+    console.log(`✅ GitHub username validation passed: ${githubUser.login} matches ${username}`)
+
     // Save to database immediately
     try {
       // Create or update profile (marking it as claimed)
@@ -230,6 +244,20 @@ router.post('/gitlab/connect', async (req, res) => {
     })
 
     const gitlabUser = userResponse.data
+
+    // SECURITY: Validate that GitLab username matches the profile being claimed
+    if (gitlabUser.username.toLowerCase() !== username.toLowerCase()) {
+      console.error(`❌ GitLab username mismatch: trying to claim '${username}' but authenticated as '${gitlabUser.username}'`)
+      return res.status(403).json({
+        error: 'Account mismatch',
+        details: `You are authenticated as GitLab user '${gitlabUser.username}' but trying to claim profile '${username}'. These must match.`,
+        authenticated_user: gitlabUser.username,
+        attempted_claim: username,
+        suggestion: `You can claim your own profile at: ${process.env.CLIENT_URL || 'http://localhost:5173'}/claim/${gitlabUser.username}`
+      })
+    }
+
+    console.log(`✅ GitLab username validation passed: ${gitlabUser.username} matches ${username}`)
 
     // Save to database immediately
     try {
