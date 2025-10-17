@@ -33,7 +33,7 @@ router.post('/github/connect', async (req, res) => {
       client_id: process.env.GITHUB_CLIENT_ID,
       client_secret: process.env.GITHUB_CLIENT_SECRET,
       code: code,
-      redirect_uri: `${process.env.CLIENT_URL || 'http://localhost:5173'}/auth/github/callback`
+      redirect_uri: `${process.env.CLIENT_URL || 'http://localhost:5174'}/auth/github/callback`
     }
 
     console.log('🔧 Making token exchange request to GitHub:', {
@@ -90,7 +90,7 @@ router.post('/github/connect', async (req, res) => {
         details: `You are authenticated as GitHub user '${githubUser.login}' but trying to claim profile '${username}'. These must match.`,
         authenticated_user: githubUser.login,
         attempted_claim: username,
-        suggestion: `You can claim your own profile at: ${process.env.CLIENT_URL || 'http://localhost:5173'}/claim/${githubUser.login}`
+        suggestion: `You can claim your own profile at: ${process.env.CLIENT_URL || 'http://localhost:5174'}/claim/${githubUser.login}`
       })
     }
 
@@ -195,7 +195,7 @@ router.post('/gitlab/connect', async (req, res) => {
       client_secret: process.env.GITLAB_CLIENT_SECRET,
       code: code,
       grant_type: 'authorization_code',
-      redirect_uri: `${process.env.CLIENT_URL || 'http://localhost:5173'}/auth/gitlab/callback`
+      redirect_uri: `${process.env.CLIENT_URL || 'http://localhost:5174'}/auth/gitlab/callback`
     }
 
     console.log('🔧 Making token exchange request to GitLab:', {
@@ -253,7 +253,7 @@ router.post('/gitlab/connect', async (req, res) => {
         details: `You are authenticated as GitLab user '${gitlabUser.username}' but trying to claim profile '${username}'. These must match.`,
         authenticated_user: gitlabUser.username,
         attempted_claim: username,
-        suggestion: `You can claim your own profile at: ${process.env.CLIENT_URL || 'http://localhost:5173'}/claim/${gitlabUser.username}`
+        suggestion: `You can claim your own profile at: ${process.env.CLIENT_URL || 'http://localhost:5174'}/claim/${gitlabUser.username}`
       })
     }
 
@@ -369,7 +369,7 @@ router.get('/gitlab/url/:username', (req, res) => {
     })
   }
 
-  const redirectUri = `${process.env.CLIENT_URL || 'http://localhost:5173'}/auth/gitlab/callback`
+  const redirectUri = `${process.env.CLIENT_URL || 'http://localhost:5174'}/auth/gitlab/callback`
 
   const gitlabUrl = `https://gitlab.com/oauth/authorize?` +
     `client_id=${process.env.GITLAB_CLIENT_ID}&` +
@@ -442,7 +442,7 @@ router.post('/gitlab/reconnect/:username', async (req, res) => {
     }
 
     // Generate new GitLab OAuth URL
-    const redirectUri = `${process.env.CLIENT_URL || 'http://localhost:5173'}/auth/gitlab/callback`
+    const redirectUri = `${process.env.CLIENT_URL || 'http://localhost:5174'}/auth/gitlab/callback`
     const gitlabUrl = `https://gitlab.com/oauth/authorize?` +
       `client_id=${process.env.GITLAB_CLIENT_ID}&` +
       `redirect_uri=${encodeURIComponent(redirectUri)}&` +

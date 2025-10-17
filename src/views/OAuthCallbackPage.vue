@@ -20,7 +20,6 @@
           </div>
         </div>
 
-        <!-- Success State -->
         <div v-else-if="success">
           <div class="text-4xl mb-4">✅</div>
           <h2 class="text-xl font-bold text-green-400 mb-2">Authentication Successful</h2>
@@ -28,13 +27,11 @@
           <p class="text-sm text-green-300/40">Redirecting back to profile claiming...</p>
         </div>
 
-        <!-- Error State -->
         <div v-else-if="error">
           <div class="text-4xl mb-4">❌</div>
           <h2 class="text-xl font-bold text-red-400 mb-2">Authentication Failed</h2>
           <p class="text-red-300/80 mb-4">{{ errorMessage }}</p>
 
-          <!-- Account Mismatch Error with Redirect Option -->
           <div v-if="accountMismatch" class="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
             <div class="flex items-center gap-2 text-yellow-400 mb-2">
               <span class="text-lg">⚠️</span>
@@ -102,10 +99,8 @@ const handleOAuthCallback = async () => {
 
     console.log('🔥 URL Params extracted:', { code: code?.substring(0, 10) + '...', state, error_param })
 
-    // Extract provider from route path
     provider.value = route.path.includes('github') ? 'GitHub' : 'GitLab'
 
-    // Get username from state parameter
     username.value = state || 'unknown'
 
     console.log('OAuth Callback Debug:', {
@@ -150,14 +145,12 @@ const handleOAuthCallback = async () => {
     success.value = true
     processing.value = false
 
-    // Store connection data in sessionStorage for the claim page
     sessionStorage.setItem(`${provider.value.toLowerCase()}_auth_data`, JSON.stringify({
       connected: true,
       data: response[provider.value.toLowerCase()],
       timestamp: Date.now()
     }))
 
-    // Redirect back to claim page after shorter delay
     setTimeout(() => {
       const redirectUrl = `/claim/${username.value}?oauth=${provider.value.toLowerCase()}_success`
       console.log('🚀 ATTEMPTING REDIRECT TO:', redirectUrl)
@@ -181,7 +174,6 @@ const handleOAuthCallback = async () => {
     error.value = true
     processing.value = false
 
-    // Check if this is an account mismatch error (403 status)
     if (err?.response?.status === 403 && err?.response?.data) {
       const errorData = err.response.data
       accountMismatch.value = true
