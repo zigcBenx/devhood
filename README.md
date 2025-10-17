@@ -1,5 +1,7 @@
 # DevHood
 
+![DevHood Preview](devhoodpreview.png)
+
 DevHood is a developer profile aggregator that fetches and displays GitHub and GitLab profiles with OAuth integration.
 
 ## Features
