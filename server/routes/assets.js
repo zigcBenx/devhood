@@ -1,7 +1,16 @@
 import express from 'express'
-import { createCanvas, loadImage } from 'canvas'
 import path from 'path'
 import fs from 'fs/promises'
+
+// Make canvas optional - if it fails to load, we'll only support SVG
+let createCanvas, loadImage
+try {
+  const canvasModule = await import('canvas')
+  createCanvas = canvasModule.createCanvas
+  loadImage = canvasModule.loadImage
+} catch (error) {
+  console.warn('⚠️  Canvas module not available. PNG generation disabled, SVG only.')
+}
 
 const router = express.Router()
 
@@ -16,6 +25,12 @@ router.get('/card/:username/:format', async (req, res) => {
     }
 
     if (format === 'png') {
+      if (!createCanvas) {
+        return res.status(503).json({
+          error: 'PNG generation not available. Canvas module not installed. Use SVG format instead.'
+        })
+      }
+
       const canvas = createCanvas(800, 400)
       const ctx = canvas.getContext('2d')
 
@@ -130,6 +145,12 @@ router.get('/graph/:username/:format', async (req, res) => {
     }
 
     if (format === 'png') {
+      if (!createCanvas) {
+        return res.status(503).json({
+          error: 'PNG generation not available. Canvas module not installed. Use SVG format instead.'
+        })
+      }
+
       const canvas = createCanvas(1200, 300)
       const ctx = canvas.getContext('2d')
 
@@ -304,12 +325,12 @@ function generateProfileCardSVG(username, theme = 'dark') {
 
       <!-- Contribution squares (mini) -->
       ${Array.from({ length: 20 }, (_, week) =>
-        Array.from({ length: 7 }, (_, day) => {
-          const intensity = Math.random()
-          const alpha = 0.2 + (intensity * 0.8)
-          return `<rect x="${50 + week * 10}" y="${320 + day * 10}" width="8" height="8" fill="rgba(34, 197, 94, ${alpha})"/>`
-        }).join('')
-      ).join('')}
+    Array.from({ length: 7 }, (_, day) => {
+      const intensity = Math.random()
+      const alpha = 0.2 + (intensity * 0.8)
+      return `<rect x="${50 + week * 10}" y="${320 + day * 10}" width="8" height="8" fill="rgba(34, 197, 94, ${alpha})"/>`
+    }).join('')
+  ).join('')}
 
       <!-- Branding -->
       <text x="750" y="370" text-anchor="end" fill="rgba(34, 197, 94, 0.6)" font-family="monospace" font-size="16">devhood.app</text>
@@ -355,9 +376,9 @@ function generateContributionGraphSVG(username, theme = 'dark', combined = false
       <!-- Legend -->
       <text x="${100 + 52 * 14 + 20}" y="100" fill="${textColor}" font-family="monospace" font-size="12">Less</text>
       ${Array.from({ length: 5 }, (_, i) => {
-        const alpha = 0.2 + (i * 0.2)
-        return `<rect x="${100 + 52 * 14 + 60 + i * 14}" y="${85}" width="12" height="12" fill="rgba(34, 197, 94, ${alpha})"/>`
-      }).join('')}
+    const alpha = 0.2 + (i * 0.2)
+    return `<rect x="${100 + 52 * 14 + 60 + i * 14}" y="${85}" width="12" height="12" fill="rgba(34, 197, 94, ${alpha})"/>`
+  }).join('')}
       <text x="${100 + 52 * 14 + 60 + 5 * 14 + 30}" y="100" fill="${textColor}" font-family="monospace" font-size="12">More</text>
     </svg>
   `.trim()

@@ -12,22 +12,20 @@
           <button @click="$router.push('/')" :class="backButtonClasses">
             ← Back to Home
           </button>
-          <AuthButton />
+          <div class="flex gap-4">
+            <button 
+              @click="showWrapped = true"
+              class="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-bold hover:opacity-90 transition-opacity animate-pulse"
+            >
+              Play DevWrapped ▶
+            </button>
+            <AuthButton />
+          </div>
         </div>
 
         <ProfileHeader :profile="profile" :profile-status="profileStatus" />
 
         <SocialLinks :links="profile.socialLinks" :username="profile.username" />
-
-        <ConnectedProviders
-          v-if="profile.isClaimed && profile.providers.length"
-          :providers="profile.providers"
-          :stats="{
-            totalRepos: profile.mergedStats.totalRepositories,
-            totalStars: profile.mergedStats.totalStars,
-            totalContributions: profile.mergedStats.totalContributions,
-          }"
-        />
 
         <AchievementsSection
           v-if="profile.isClaimed || (profile.achievements && profile.achievements.length)"
@@ -51,6 +49,12 @@
           :claimed-profile="claimedProfile"
           :share-stats="shareStats"
           @share="shareProfile"
+        />
+
+        <DevWrapped 
+          :is-open="showWrapped" 
+          :slides="wrappedSlides" 
+          @close="showWrapped = false" 
         />
       </div>
     </div>
@@ -78,6 +82,7 @@ import ShareSection from '@/components/profile/ShareSection.vue'
 import AuthButton from '@/components/AuthButton.vue'
 import ConnectedProviders from '@/components/ConnectedProviders.vue'
 import ActivityGraph from '@/components/ActivityGraph.vue'
+import DevWrapped from '@/components/DevWrapped.vue'
 
 const route = useRoute()
 const { updateMeta } = useMeta()
@@ -103,6 +108,93 @@ const { contributionsLoading, contributionsError, loadContributions, formatContr
 
 const claimedProfile = ref<Profile | null>(null)
 const shareStats = ref<{ views: number; shares: number; clicks: number } | null>(null)
+const showWrapped = ref(false)
+
+const wrappedSlides = computed(() => {
+  if (!profile.value) return []
+  
+  const p = profile.value
+  const stats = p.stats || []
+  const repos = stats.find((s: any) => s.label === 'Repositories')?.value || '0'
+  const stars = stats.find((s: any) => s.label === 'Stars Earned' || s.label === 'Stars')?.value || '0'
+  const contributions = stats.find((s: any) => s.label === 'Total Contributions')?.value || '0'
+  const followers = stats.find((s: any) => s.label === 'Followers')?.value || '0'
+  const topLanguage = p.topRepos?.[0]?.language || 'Code'
+  
+  // Fun fact calculations
+  const locEstimate = parseInt(contributions.replace(/,/g, '')) * 20; // Rough estimate: 20 lines per contribution
+  const booksWritten = Math.max(1, Math.floor(locEstimate / 10000)); // 10k lines per book approx
+  const coffeeCups = Math.floor(parseInt(contributions.replace(/,/g, '')) * 0.5); // 0.5 cups per contribution
+
+  return [
+    {
+      layout: 'intro',
+      title: "2024 Unwrapped",
+      subtitle: `For @${p.username}`,
+      bgColor: "bg-gradient-to-br from-violet-900 via-purple-900 to-fuchsia-900",
+      textColor: "text-white"
+    },
+    {
+      layout: 'stat-big',
+      title: "You were busy!",
+      stat: contributions,
+      statLabel: "Contributions",
+      description: `That's enough code to fill ${booksWritten} Harry Potter books! 📚🧙‍♂️`,
+      bgColor: "bg-gradient-to-br from-emerald-900 to-teal-900",
+      textColor: "text-emerald-100"
+    },
+    {
+      layout: 'stat-big',
+      title: "Repo Machine",
+      stat: repos,
+      statLabel: "Public Repos",
+      description: "You're building the future, one repo at a time. 🚀",
+      bgColor: "bg-gradient-to-br from-blue-900 to-indigo-900",
+      textColor: "text-blue-100"
+    },
+    {
+      layout: 'rank',
+      title: "Star Power",
+      stat: stars,
+      statLabel: "Stars Earned",
+      rankIcon: "⭐",
+      description: "You're basically a celebrity in the open source world.",
+      bgColor: "bg-gradient-to-br from-amber-900 to-orange-900",
+      textColor: "text-amber-100"
+    },
+    {
+      layout: 'stat-big',
+      title: "Main Character Energy",
+      stat: topLanguage,
+      statLabel: "Top Language",
+      description: `You speak ${topLanguage} fluently. Impressive! 🗣️`,
+      bgColor: "bg-gradient-to-br from-pink-900 to-rose-900",
+      textColor: "text-rose-100"
+    },
+    {
+      layout: 'stat-grid',
+      title: "Community Stats",
+      description: "You're building a tribe!",
+      stats: [
+        { label: 'Followers', value: followers },
+        { label: 'Following', value: p.stats.find((s: any) => s.label === 'Following')?.value || '0' },
+        { label: 'Coffees Consumed', value: `~${coffeeCups}` },
+        { label: 'Bugs Created', value: '∞' }
+      ],
+      bgColor: "bg-gradient-to-br from-slate-900 to-gray-900",
+      textColor: "text-gray-100"
+    },
+    {
+      layout: 'outro',
+      title: "That's a Wrap!",
+      subtitle: "See you in 2025",
+      stat: contributions, // Passing for summary
+      description: topLanguage, // Passing for summary
+      bgColor: "bg-black",
+      textColor: "text-white"
+    }
+  ]
+})
 
 const bgGridClasses = computed(() => classes.bgGrid)
 const backButtonClasses = computed(() =>
@@ -181,10 +273,9 @@ const copyToClipboard = async (text: string) => {
 onMounted(async () => {
   await handleFetchProfile()
 
-  if (profile.value?.isClaimed && profile.value.badges.length > 0) {
-    const profileId = profile.value.badges[0].profile_id
+  if (profile.value?.isClaimed) {
     claimedProfile.value = {
-      id: profileId,
+      id: username.value,
       auth0_id: user.value?.sub || '',
       username: profile.value.username,
       display_name: profile.value.displayName,
