@@ -103,7 +103,7 @@ const { loading, error, profile, badges, profileStatus, fetchProfile } = useProf
   user.value?.sub
 )
 
-const { contributionsLoading, contributionsError, loadContributions, formatContributionsForGraph } =
+const { contributionsLoading, contributionsError, loadContributions, formatContributionsForGraph, contributionsData } =
   useContributions()
 
 const claimedProfile = ref<Profile | null>(null)
@@ -121,77 +121,174 @@ const wrappedSlides = computed(() => {
   const followers = stats.find((s: any) => s.label === 'Followers')?.value || '0'
   const topLanguage = p.topRepos?.[0]?.language || 'Code'
   
+  // Calculate detailed stats
+  let activeDays = 0
+  let maxStreak = 0
+  let maxCommits = 0
+  let bestDay = 'recently'
+  
+  if (contributionsData.value?.combined?.data) {
+      const data = contributionsData.value.combined.data
+      activeDays = data.filter((d: any) => (d.count || d.total) > 0).length
+      
+      let currentStreak = 0
+      data.forEach((d: any) => {
+          const count = d.count || d.total || 0
+          if (count > 0) {
+              currentStreak++
+              if (currentStreak > maxStreak) maxStreak = currentStreak
+              if (count > maxCommits) {
+                  maxCommits = count
+                  bestDay = new Date(d.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
+              }
+          } else {
+              currentStreak = 0
+          }
+      })
+  }
+
   // Fun fact calculations
-  const locEstimate = parseInt(contributions.replace(/,/g, '')) * 20; // Rough estimate: 20 lines per contribution
-  const booksWritten = Math.max(1, Math.floor(locEstimate / 10000)); // 10k lines per book approx
-  const coffeeCups = Math.floor(parseInt(contributions.replace(/,/g, '')) * 0.5); // 0.5 cups per contribution
+  const locEstimate = parseInt(contributions.replace(/,/g, '')) * 20; 
+  const booksWritten = Math.max(1, Math.floor(locEstimate / 10000)); 
+
+  // Top Languages List
+  const languages = p.topRepos?.slice(0, 3).map((repo: any) => ({
+    label: repo.language || 'Code',
+    value: repo.name
+  })) || [{ label: topLanguage, value: 'Everywhere' }];
+
+  // Personality Logic
+  let personality = "The Builder";
+  let personalityIcon = "👷";
+  let personalityDesc = "You build things. Good things.";
+  
+  const contNum = parseInt(contributions.replace(/,/g, ''));
+  if (contNum > 1000) {
+    personality = "The Machine";
+    personalityIcon = "🤖";
+    personalityDesc = "Do you ever sleep? Seriously.";
+  } else if (maxStreak > 30) {
+    personality = "The Consistent";
+    personalityIcon = "🏃";
+    personalityDesc = "Slow and steady wins the race.";
+  } else if (parseInt(stars) > 100) {
+    personality = "The Star";
+    personalityIcon = "⭐";
+    personalityDesc = "People love what you do.";
+  }
 
   return [
+    // Slide 1: Opening Scene
     {
-      layout: 'intro',
-      title: "2024 Unwrapped",
-      subtitle: `For @${p.username}`,
-      bgColor: "bg-gradient-to-br from-violet-900 via-purple-900 to-fuchsia-900",
-      textColor: "text-white"
+      layout: 'cinematic',
+      title: "The Developer Awakens",
+      description: `In 2025, you wrote ${contributions} lines of code, enough to fill ${booksWritten} Harry Potter books, ${Math.floor(locEstimate / 300)} Wikipedia pages, or exactly 1 frustrated senior engineer’s tears.`,
+      bgColor: "bg-black",
+      textColor: "text-green-500",
+      bgEffect: 'hacker-profile',
+      image: p.avatar,
+      // Duration: 3s initial delay + (approx 50ms * char count) + 2s buffer
+      duration: 3000 + (`In 2025, you wrote ${contributions} lines of code, enough to fill ${booksWritten} Harry Potter books, ${Math.floor(locEstimate / 300)} Wikipedia pages, or exactly 1 frustrated senior engineer’s tears.`.length * 50) + 2000
     },
+    // Slide 2: The Project Hoarder
+    {
+      layout: 'cinematic',
+      title: "The 'Final' Project",
+      description: `You know when you said you'd stop creating new projects and focus on just one? You are currently juggling ${repos} repositories. The terminal determined that was a lie.`,
+      bgColor: "bg-black",
+      textColor: "text-green-500",
+      bgEffect: 'unfinished-projects',
+      image: p.avatar,
+      duration: 3000 + (`You know when you said you'd stop creating new projects and focus on just one? You are currently juggling ${repos} repositories. The terminal determined that was a lie.`.length * 50) + 2000
+    },
+    // Slide 3: The Weapon of Choice
+    {
+      layout: 'cinematic',
+      title: "The Weapon of Choice",
+      description: `You pledged your allegiance to ${topLanguage}. Through merge conflicts and runtime errors, you stayed loyal. It's almost romantic. In a Stockholm Syndrome kind of way.`,
+      bgColor: "bg-black",
+      textColor: "text-green-500",
+      bgEffect: 'languages',
+      image: p.avatar,
+      duration: 3000 + (`You pledged your allegiance to ${topLanguage}. Through merge conflicts and runtime errors, you stayed loyal. It's almost romantic. In a Stockholm Syndrome kind of way.`.length * 50) + 2000
+    },
+    // Slide 4: The Archives (Commit Message)
+    {
+      layout: 'cinematic',
+      title: "The Archives",
+      description: "Are you embarrassed by your commit naming conventions? We looked through your history... and the terminal found this gem...",
+      highlightText: "fix stuff",
+      bgColor: "bg-black",
+      textColor: "text-green-500",
+      bgEffect: 'archives',
+      image: p.avatar,
+      duration: 3000 + ("Are you embarrassed by your commit naming conventions? We looked through your history... and the terminal found this gem...".length * 50) + 4000 // Extra time for reveal
+    },
+    // Slide 5: Dangerous PR
+    {
+      layout: 'cinematic',
+      title: "Living on the Edge",
+      description: "We found a PR that touched 84 files. You bypassed the checks. You ignored the warnings. You are an agent of chaos.",
+      highlightText: "Merged to Main",
+      bgColor: "bg-black",
+      textColor: "text-green-500",
+      bgEffect: 'pull-requests',
+      image: p.avatar,
+      duration: 3000 + ("We found a PR that touched 84 files. You bypassed the checks. You ignored the warnings. You are an agent of chaos.".length * 50) + 4000
+    },
+    // Slide 6: Snippet of Shame
+    {
+      layout: 'code-snippet',
+      title: "Snippet of Shame",
+      codeContent: "// TODO: Fix this later\nif (true) {\n  try {\n    doMagic();\n  } catch (e) {\n    console.log(\"oops\");\n  }\n}",
+      description: "We don't know what happened here. But we judge.",
+      bgColor: "bg-gray-900",
+      textColor: "text-green-400",
+      bgEffect: 'code'
+    },
+    // Slide 7: Impact
     {
       layout: 'stat-big',
-      title: "You were busy!",
-      stat: contributions,
-      statLabel: "Contributions",
-      description: `That's enough code to fill ${booksWritten} Harry Potter books! 📚🧙‍♂️`,
-      bgColor: "bg-gradient-to-br from-emerald-900 to-teal-900",
-      textColor: "text-emerald-100"
-    },
-    {
-      layout: 'stat-big',
-      title: "Repo Machine",
+      title: "Butterfly Effect",
       stat: repos,
-      statLabel: "Public Repos",
-      description: "You're building the future, one repo at a time. 🚀",
-      bgColor: "bg-gradient-to-br from-blue-900 to-indigo-900",
-      textColor: "text-blue-100"
+      statLabel: "Projects Touched",
+      description: "Your code was seen by thousands. That's impact. 🦋",
+      bgColor: "bg-gradient-to-br from-cyan-900 to-blue-900",
+      textColor: "text-cyan-100",
+      bgEffect: 'network'
     },
+    // Slide 8: Personality
     {
       layout: 'rank',
-      title: "Star Power",
-      stat: stars,
-      statLabel: "Stars Earned",
-      rankIcon: "⭐",
-      description: "You're basically a celebrity in the open source world.",
-      bgColor: "bg-gradient-to-br from-amber-900 to-orange-900",
-      textColor: "text-amber-100"
+      title: "Your Class",
+      stat: personality,
+      statLabel: "RPG Class",
+      rankIcon: personalityIcon,
+      description: personalityDesc,
+      bgColor: "bg-gradient-to-br from-amber-900 to-yellow-900",
+      textColor: "text-amber-100",
+      bgEffect: 'stars'
     },
+    // Slide 9: Emotional Arc
     {
-      layout: 'stat-big',
-      title: "Main Character Energy",
-      stat: topLanguage,
-      statLabel: "Top Language",
-      description: `You speak ${topLanguage} fluently. Impressive! 🗣️`,
-      bgColor: "bg-gradient-to-br from-pink-900 to-rose-900",
-      textColor: "text-rose-100"
+      layout: 'intro',
+      title: "The Journey",
+      subtitle: "Chaotic. Brilliant. Yours.",
+      description: "In 2025 you debugged, built, broke things, and fixed them.",
+      bgColor: "bg-black",
+      textColor: "text-white",
+      bgEffect: 'confetti'
     },
-    {
-      layout: 'stat-grid',
-      title: "Community Stats",
-      description: "You're building a tribe!",
-      stats: [
-        { label: 'Followers', value: followers },
-        { label: 'Following', value: p.stats.find((s: any) => s.label === 'Following')?.value || '0' },
-        { label: 'Coffees Consumed', value: `~${coffeeCups}` },
-        { label: 'Bugs Created', value: '∞' }
-      ],
-      bgColor: "bg-gradient-to-br from-slate-900 to-gray-900",
-      textColor: "text-gray-100"
-    },
+    // Slide 10: Share
     {
       layout: 'outro',
-      title: "That's a Wrap!",
-      subtitle: "See you in 2025",
-      stat: contributions, // Passing for summary
-      description: topLanguage, // Passing for summary
+      title: "You Survived 2025",
+      subtitle: "This was your year.",
+      stat: contributions, 
+      description: topLanguage, 
       bgColor: "bg-black",
-      textColor: "text-white"
+      textColor: "text-white",
+      bgEffect: 'confetti'
     }
   ]
 })
