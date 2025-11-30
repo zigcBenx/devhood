@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import WrappedSlide from './WrappedSlide.vue';
+import WrappedSlideNew from './WrappedSlideNew.vue';
+import type { SlideConfig } from '@/config/wrapped-slides';
 
-interface SlideData {
+// Old slide data interface (for backwards compatibility)
+interface OldSlideData {
   title: string;
   subtitle?: string;
   stat?: string | number;
@@ -10,11 +13,15 @@ interface SlideData {
   description?: string;
   bgColor: string;
   image?: string;
-  bgEffect?: 'contributions' | 'stars' | 'code' | 'confetti' | 'pulse' | 'rockets' | 'network' | 'none';
+  bgEffect?: string;
   listItems?: Array<{ label: string; value: string }>;
   codeContent?: string;
   duration?: number;
+  layout?: string;
+  highlightText?: string;
 }
+
+type SlideData = SlideConfig | OldSlideData;
 
 const props = defineProps<{
   isOpen: boolean;
@@ -148,12 +155,20 @@ onUnmounted(() => {
 
         <!-- Slides -->
         <div class="relative w-full h-full">
-          <WrappedSlide
-            v-for="(slide, index) in slides"
-            :key="index"
-            v-bind="slide"
-            :isActive="index === currentIndex"
-          />
+          <template v-for="(slide, index) in slides" :key="index">
+            <!-- New config-based slides -->
+            <WrappedSlideNew
+              v-if="'id' in slide"
+              :config="slide as SlideConfig"
+              :isActive="index === currentIndex"
+            />
+            <!-- Old hardcoded slides (backwards compatibility) -->
+            <WrappedSlide
+              v-else
+              v-bind="slide as OldSlideData"
+              :isActive="index === currentIndex"
+            />
+          </template>
         </div>
 
         <!-- Navigation Tap Areas -->
